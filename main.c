@@ -7,7 +7,7 @@
 
 #define SIZE 3 // розмір масива структур
 
-struct resistancePower {
+struct ResistancePower {
     double T;
     double t;
     double p;
@@ -17,37 +17,31 @@ struct resistancePower {
     double d;
 };
 
-struct resistancePower *getResistancePower();
+struct ResistancePower *getResistancePower();
 
-double getS(double d);
+double getS(struct ResistancePower rp);
 
-double *getV(double T, int arraySize, double t, double A, double v0);
+double *getV(struct ResistancePower rp);
 
-double *getR(double *V, int arraySize, double d, double p, double u);
+double *getR(struct ResistancePower rp);
 
-double *getQ(double *R, int arraySize);
+double *getQ(struct ResistancePower rp);
 
-double *getF(double *Q, double *V, int arraySize, double p, double S);
+double *getF(struct ResistancePower rp);
 
-void writeResistancePowerToFile(double *F, int arraySize, int structPos);
+void writeResistancePowerToFile(struct ResistancePower rp, int structPos);
 
 int main() {
-    struct resistancePower *rp = getResistancePower();
+    struct ResistancePower *rp = getResistancePower();
     for (int i = 0; i < SIZE; ++i) {
-        int arraySize = (int) rp[i].T / rp[i].t + 1;
-        double curS = getS(rp[i].d);
-        double *curV = getV(rp[i].T, arraySize, rp[i].t, rp[i].A, rp[i].v0);
-        double *curR = getR(curV, arraySize, rp[i].d, rp[i].p, rp[i].u);
-        double *curQ = getQ(curR, arraySize);
-        double *curF = getF(curQ, curV, arraySize, rp[i].p, curS);
-        writeResistancePowerToFile(curF, arraySize, i + 1);
+        writeResistancePowerToFile(rp[i], i + 1);
     }
     return 0;
 }
 
-struct resistancePower *getResistancePower() {
-    struct resistancePower *rp;
-    rp = calloc(SIZE, sizeof(struct resistancePower));
+struct ResistancePower *getResistancePower() {
+    struct ResistancePower *rp;
+    rp = calloc(SIZE, sizeof(struct ResistancePower));
     FILE *input;
     input = fopen(INPUT_FILE, "r");
     if (input == 0) {
@@ -65,40 +59,44 @@ struct resistancePower *getResistancePower() {
     return rp;
 }
 
-double getS(double d) {
-    return M_PI * pow((d / 2), 2);
+double getS(struct ResistancePower rp) {
+    return M_PI * pow((rp.d / 2), 2);
 }
 
-double *getV(double T, int arraySize, double t, double A, double v0) {
+double *getV(struct ResistancePower rp) {
+    int arraySize = (int) rp.T / rp.t + 1;
     double *V = calloc(arraySize, sizeof(double));
-    double deltaT = t;
-    t = 0;
+    double tPos = 0;
     int i = 0;
-    while (t <= T) {
-        if (t >= 0 && t < T / 4) {
-            V[i] = v0 + 4 * A * t / T;
+    while (tPos <= rp.T) {
+        if (tPos >= 0 && tPos < rp.T / 4) {
+            V[i] = rp.v0 + 4 * rp.A * tPos / rp.T;
         }
-        if (t >= T / 4 && t < 3 * T / 4) {
-            V[i] = v0 + A;
+        if (tPos >= rp.T / 4 && tPos < 3 * rp.T / 4) {
+            V[i] = rp.v0 + rp.A;
         }
-        if (t >= 3 * T / 4 && t <= T) {
-            V[i] = v0 + A - (t - 3. / 4 * T) * (4 * A) / T;
+        if (tPos >= 3 * rp.T / 4 && tPos <= rp.T) {
+            V[i] = rp.v0 + rp.A - (tPos - 3. / 4 * rp.T) * (4 * rp.A) / rp.T;
         }
-        t += deltaT;
+        tPos += rp.t;
         i++;
     }
     return V;
 }
 
-double *getR(double *V, int arraySize, double d, double p, double u) {
+double *getR(struct ResistancePower rp) {
+    double *V = getV(rp);
+    int arraySize = (int) rp.T / rp.t + 1;
     double *R = calloc(arraySize, sizeof(double));
     for (int i = 0; i < arraySize; ++i) {
-        R[i] = V[i] * d * p / u;
+        R[i] = V[i] * rp.d * rp.p / rp.u;
     }
     return R;
 }
 
-double *getQ(double *R, int arraySize) {
+double *getQ(struct ResistancePower rp) {
+    double *R = getR(rp);
+    int arraySize = (int) rp.T / rp.t + 1;
     double *Q = calloc(arraySize, sizeof(double));
     for (int i = 0; i < arraySize; ++i) {
         if (R[i] <= 2) {
@@ -114,15 +112,21 @@ double *getQ(double *R, int arraySize) {
     return Q;
 }
 
-double *getF(double *Q, double *V, int arraySize, double p, double S) {
+double *getF(struct ResistancePower rp) {
+    double *Q = getQ(rp);
+    double *V = getV(rp);
+    double S = getS(rp);
+    int arraySize = (int) rp.T / rp.t + 1;
     double *F = calloc(arraySize, sizeof(double));
     for (int i = 0; i < arraySize; ++i) {
-        F[i] = Q[i] * S * p * pow(V[i], 2) / 2;
+        F[i] = Q[i] * S * rp.p * pow(V[i], 2) / 2;
     }
     return F;
 }
 
-void writeResistancePowerToFile(double *F, int arraySize, int structPos) {
+void writeResistancePowerToFile(struct ResistancePower rp, int structPos) {
+    int arraySize = (int) rp.T / rp.t + 1;
+    double *F = getF(rp);
     FILE *output;
     output = fopen(OUTPUT_FILE, "a+");
     printf("\n\nResistance power (F) from struct #%d:\n", structPos);
@@ -132,6 +136,5 @@ void writeResistancePowerToFile(double *F, int arraySize, int structPos) {
         fprintf(output, "%.8lf ", F[i]);
     }
     fprintf(output, "\n\n\n");
-
     fclose(output);
 }
